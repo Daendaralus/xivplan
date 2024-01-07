@@ -25,11 +25,11 @@ function getStyles(theme: Theme): IAppStyles {
             right: 0,
             bottom: 0,
             display: 'grid',
-            gridTemplateColumns: `auto minmax(400px, auto) 1fr`,
-            gridTemplateRows: `min-content auto 1fr`,
+            gridTemplateColumns: `auto minmax(400px, min-content) minmax(400px, min-content) 1fr`,
+            gridTemplateRows: `min-content min-content min-content 1fr`,
             gridTemplateAreas: `
                 "header     header  header"
-                "left-panel groups   right-panel"
+                "left-panel groups right-panel"
                 "left-panel steps right-panel"
                 "left-panel content right-panel"
             `,
