@@ -86,11 +86,7 @@ const classNames = mergeStyleSets({
         height: 32,
         float: 'left',
         margin: 5,
-    } as IStyle,
-    itemImage: {
-        width: 32,
-        height: 32
-    } as IStyle,
+    } as IStyle
 });
 
 interface Pagination {
@@ -145,6 +141,63 @@ const onRenderCell = (item?: StatusItem): JSX.Element | null => {
     );
 };
 
+function extractIconNumber(iconPath: string): number | undefined {
+    if (!iconPath) {
+        return undefined;
+    }
+    const match = /(\d+)\.png$/.exec(iconPath);
+    if (match && match[1]) {
+        return parseInt(match[1]);
+    } else {
+        return undefined;
+    }
+}
+
+function checkResourceExists(url: string): Promise<boolean> {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(true);
+        img.onerror = () => resolve(false);
+        img.src = url;
+    });
+}
+
+async function addMissingIcons(items: StatusItem[]): Promise<StatusItem[]> {
+    // Sort items by icon number
+    items.sort((a, b) => (extractIconNumber(a.Icon)??0) - (extractIconNumber(b.Icon)??0));
+
+    let allItems: StatusItem[] = [];
+
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const itemNext = items[i+1];
+        if (item == undefined) continue;
+        allItems.push(item);
+        // if (itemNext == undefined) continue;
+        const currentIconNumber = extractIconNumber(item.Icon);
+        if (currentIconNumber === undefined) continue;
+        const nextIconNumber = i < items.length - 1 ? extractIconNumber(itemNext?.Icon??""): currentIconNumber+7
+
+        if (currentIconNumber !== undefined && nextIconNumber !== undefined && nextIconNumber - currentIconNumber > 1 && nextIconNumber - currentIconNumber < 8) {
+            for (let num = currentIconNumber + 1; num < nextIconNumber; num++) {
+                const missingIconPath = item.Icon.replace(new RegExp(`${currentIconNumber}\\.png$`), `${num}.png`);
+                let missingIconHRPath = item.Icon.replace(new RegExp(`${currentIconNumber}\\.png$`), `${num}_hr1.png`);
+                if (!await checkResourceExists(`https://xivapi.com${missingIconPath}`)) {
+                    console.log(`skipping missing icon https://xivapi.com${missingIconPath}`)
+                    continue
+                }
+                if (!await checkResourceExists(`https://xivapi.com${missingIconHRPath}`)) {
+                    missingIconHRPath = ""
+                }
+                console.log(`adding missing icon ${missingIconPath}`)
+                allItems.push({ ...item, Icon: missingIconPath, IconHD: missingIconHRPath});
+            }
+        }
+    }
+
+    return allItems;
+}
+
 const fetchStatuses = async (search: string, signal: AbortSignal, language: Language = 'en'): Promise<StatusItem[]> => {
     const items: StatusItem[] = [];
 
@@ -183,16 +236,19 @@ const fetchStatuses = async (search: string, signal: AbortSignal, language: Lang
         pageIndex = page.Pagination.PageNext;
     } while (pageIndex !== null);
 
+    // Add missing icons
+    const itemsWithMissingIcons = await addMissingIcons(items);
+
     // Replace item icons with HD versions if available
-    for (const item of items) {
+    for (const item of itemsWithMissingIcons) {
         let icon = item.IconHD??item.Icon;
         if (item.IconHD===""){
             icon = item.Icon;
         }
         item.Icon = icon;
     }
-    console.log(items);
-    return items;
+    console.log(itemsWithMissingIcons);
+    return itemsWithMissingIcons;
 };
 
 const LANGUAGE_OPTIONS: IDropdownOption[] = [
@@ -237,8 +293,7 @@ const StatusSearch: React.FC<StatusSearchProps> = ({ filter, onFilterChanged }) 
             return [];
         }
     }, [debouncedFilter]);
-
-    return (
+    const a = (
         <FocusZone direction={FocusZoneDirection.vertical}>
             <Dropdown
                 label="Language"
@@ -262,6 +317,7 @@ const StatusSearch: React.FC<StatusSearchProps> = ({ filter, onFilterChanged }) 
             </div>
         </FocusZone>
     );
+    return a
 };
 
 const SpecialStatus: React.FC = () => {
