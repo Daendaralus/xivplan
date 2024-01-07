@@ -12,7 +12,7 @@ import {
 import { useBoolean } from '@fluentui/react-hooks';
 import React, { useEffect, useMemo, useRef } from 'react';
 import { BaseDialog, IBaseDialogStyles } from '../BaseDialog';
-import { useScene } from '../SceneProvider';
+import { useEditorState } from '../SceneProvider';
 import { sceneToText } from '../file';
 
 const classNames = mergeStyleSets({
@@ -53,11 +53,11 @@ const labelStyles = mergeStyleSets({
 });
 
 const ShareText: React.FC = () => {
-    const { scene } = useScene();
+    const { groups } = useEditorState();
     const url = useMemo(() => {
-        const data = sceneToText(scene);
+        const data = sceneToText(groups);
         return `${location.protocol}//${location.host}${location.pathname}#/plan/${data}`;
-    }, [scene]);
+    }, [groups]);
     const [copyMessageVisible, setMessageVisibility] = useBoolean(false);
     const timerRef = useRef<number>();
 

@@ -1,5 +1,5 @@
 import localforage from 'localforage';
-import { Scene } from '../scene';
+import { Group } from '../scene';
 
 interface FileMetadata {
     timestamp: string;
@@ -15,21 +15,21 @@ const metadata = localforage.createInstance({
     storeName: 'meta',
 });
 
-export async function saveFileLocal(scene: Readonly<Scene>, name: string): Promise<void> {
+export async function saveFileLocal(groups: Readonly<Group[]>, name: string): Promise<void> {
     const meta: FileMetadata = {
         timestamp: new Date().toISOString(),
     };
 
-    await files.setItem(name, scene);
+    await files.setItem(name, groups);
     await metadata.setItem(name, meta);
 }
 
-export async function openFileLocal(name: string): Promise<Scene> {
-    const scene = await files.getItem<Scene>(name);
-    if (!scene) {
+export async function openFileLocal(name: string): Promise<Group[]> {
+    const groups = await files.getItem<Group[]>(name);
+    if (!groups) {
         throw new Error(`Failed to open file "${name}"`);
     }
-    return scene;
+    return groups;
 }
 
 export async function deleteFileLocal(name: string): Promise<void> {

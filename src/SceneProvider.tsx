@@ -5,14 +5,15 @@ import { copyObjects } from './copy';
 import {
     Arena,
     ArenaShape,
-    DEFAULT_SCENE,
+    DEFAULT_GROUP,
     Grid,
-    isTether,
+    Group,
     Scene,
     SceneObject,
     SceneObjectWithoutId,
     SceneStep,
     Tether,
+    isTether
 } from './scene';
 import { createUndoContext } from './undo/undoContext';
 import { asArray, clamp } from './util';
@@ -105,6 +106,12 @@ export interface SetStepAction {
     index: number;
 }
 
+export interface RenameStepAction {
+    type: 'renameStep';
+    index: number;
+    name: string;
+}
+
 export interface IncrementStepAction {
     type: 'nextStep' | 'previousStep';
 }
@@ -118,14 +125,40 @@ export interface RemoveStepAction {
     type: 'removeStep';
     index: number;
 }
+export interface RenameGroupAction {
+    type: 'renameGroup';
+    index: number;
+    name: string;
+}
 
-export type StepAction = SetStepAction | IncrementStepAction | AddStepAction | RemoveStepAction;
+export interface SetGroupAction {
+    type: 'setGroup';
+    index: number;
+}
+
+export interface AddGroupAction {
+    type: 'addGroup';
+    name?: string;
+}
+
+export interface RemoveGroupAction {
+    type: 'removeGroup';
+    index: number;
+}
+
+export interface IncrementGroupAction {
+    type: 'nextGroup' | 'previousGroup';
+}
+
+export type StepAction = SetStepAction | IncrementStepAction | AddStepAction | RemoveStepAction | RenameStepAction;
 export interface SetSourceAction {
     type: 'setSource';
     source: FileSource | undefined;
 }
 
-export type SceneAction = ArenaAction | ObjectAction | StepAction | SetSourceAction;
+export type GroupAction = IncrementGroupAction | RenameGroupAction | SetGroupAction | AddGroupAction | RemoveGroupAction;
+
+export type SceneAction = ArenaAction | ObjectAction | StepAction | SetSourceAction | GroupAction;
 
 export interface LocalFileSource {
     type: 'local';
@@ -135,35 +168,51 @@ export interface LocalFileSource {
 export type FileSource = LocalFileSource;
 
 export interface EditorState {
-    scene: Scene;
+    groups: Group[];
+    currentGroup: number; // Index of the current group
     currentStep: number;
     source?: FileSource;
+    dispatch?: React.Dispatch<SceneAction>;
 }
 
 function getCurrentStep(state: EditorState): SceneStep {
-    const step = state.scene.steps[state.currentStep];
-    if (!step) {
-        throw new Error(`Invalid step index ${state.currentStep}`);
+    const currentGroup = state.groups[state.currentGroup];
+    if (!currentGroup) {
+        throw new Error(`Invalid group index ${state.currentGroup}`);
     }
+
+    const currentScene = currentGroup.scene;
+    if (!currentScene) {
+        throw new Error(`Invalid scene in group ${state.currentGroup}`);
+    }
+
+    const step = currentScene.steps[state.currentStep];
+    if (!step) {
+        throw new Error(`Invalid step index ${state.currentStep} in scene ${currentScene}`);
+    }
+    
     return step;
 }
+
 
 const HISTORY_SIZE = 1000;
 
 const { UndoProvider, Context, usePresent, useUndoRedo, useReset } = createUndoContext(sceneReducer, HISTORY_SIZE);
 
 export interface SceneProviderProps extends PropsWithChildren {
-    initialScene?: Scene;
+    initialGroup?: Group[];
 }
 
-export const SceneProvider: React.FC<SceneProviderProps> = ({ initialScene, children }) => {
+export const SceneProvider: React.FC<SceneProviderProps> = ({ initialGroup, children }) => {
     const initialState: EditorState = {
-        scene: initialScene ?? DEFAULT_SCENE,
+        groups: initialGroup ?? [DEFAULT_GROUP],
+        currentGroup: 0,
         currentStep: 0,
     };
 
     return <UndoProvider initialState={initialState}>{children}</UndoProvider>;
 };
+
 
 export const SceneContext = Context;
 
@@ -175,17 +224,33 @@ export interface SceneContext {
     dispatch: React.Dispatch<SceneAction>;
 }
 
+export function useEditorState(): EditorState {
+    const [present, dispatch] = usePresent();
+    return { ...present, dispatch };
+}
+
 export function useScene(): SceneContext {
     const [present, dispatch] = usePresent();
 
+    const currentGroup = present.groups[present.currentGroup];
+    if (!currentGroup) {
+        throw new Error(`Invalid group index ${present.currentGroup}`);
+    }
+
+    const currentScene = currentGroup.scene;
+    if (!currentScene) {
+        throw new Error(`Invalid scene in group ${present.currentGroup}`);
+    }
+
     return {
-        scene: present.scene,
+        scene: currentScene,
         step: getCurrentStep(present),
         stepIndex: present.currentStep,
         source: present.source,
         dispatch,
     };
 }
+
 
 export function useCurrentStep(): SceneStep {
     const [present] = usePresent();
@@ -194,10 +259,34 @@ export function useCurrentStep(): SceneStep {
 
 export const useSceneUndoRedo = useUndoRedo;
 
+export function useLoadGroup(): (groups: Group[], source?: FileSource) => void {
+    const reset = useReset();
+    return (groups: Group[], source?: FileSource) => {
+        reset({ 
+            groups: groups, 
+            currentGroup: 0,
+            currentStep: 0,
+            source 
+        });
+    };
+}
+
 export function useLoadScene(): (scene: Scene, source?: FileSource) => void {
     const reset = useReset();
-    return (scene: Scene, source?: FileSource) => reset({ scene, source, currentStep: 0 });
+    return (scene: Scene, source?: FileSource) => {
+        const newGroup: Group = {
+            name: 'Loaded Group', // You might want a way to set this name
+            scene: scene
+        };
+        reset({ 
+            groups: [newGroup], 
+            currentGroup: 0,
+            currentStep: 0,
+            source 
+        });
+    };
 }
+
 
 export function getObjectById(scene: Scene, id: number): SceneObject | undefined {
     for (const step of scene.steps) {
@@ -252,33 +341,173 @@ function assignObjectIds(
 }
 
 function setStep(state: Readonly<EditorState>, index: number): EditorState {
+    const currentGroup = state.groups[state.currentGroup];
+    if (!currentGroup) {
+        throw new Error(`Invalid group index ${state.currentGroup}`);
+    }
+
+    const currentScene = currentGroup.scene;
+    if (!currentScene) {
+        throw new Error(`Invalid scene in group ${state.currentGroup}`);
+    }
+
     if (index === state.currentStep) {
         return state;
     }
+
     return {
         ...state,
-        currentStep: clamp(index, 0, state.scene.steps.length - 1),
+        currentStep: clamp(index, 0, currentScene.steps.length - 1),
     };
 }
 
-function addStep(state: Readonly<EditorState>, after: number): EditorState {
-    const copy = copyObjects(state.scene, getCurrentStep(state).objects);
-    const { objects, nextId } = assignObjectIds(state.scene, copy);
+function renameGroup(state: Readonly<EditorState>, index: number, newName: string): EditorState {
+    const newGroups = state.groups.map((group, idx) => {
+        if (idx === index) {
+            return { ...group, name: newName };
+        }
+        return group;
+    });
 
-    const newStep: SceneStep = { objects };
+    return { ...state, groups: newGroups };
+}
 
-    const steps = state.scene.steps.slice();
-    steps.splice(after + 1, 0, newStep);
+function setGroup(state: Readonly<EditorState>, index: number): EditorState {
+    if (index < 0 || index >= state.groups.length) {
+        throw new Error(`Invalid group index ${index}`);
+    }
+
+    return { ...state, currentGroup: index, currentStep: 0 };
+}
+
+function addGroup(state: Readonly<EditorState>, newGroupName?: string): EditorState {
+    const newGroup: Group = {
+        name: newGroupName,
+        ...DEFAULT_GROUP
+    };
 
     return {
         ...state,
-        scene: { ...state.scene, nextId, steps },
+        groups: [...state.groups, newGroup]
+    };
+}
+
+function removeGroup(state: Readonly<EditorState>, index: number): EditorState {
+    if (index < 0 || index >= state.groups.length) {
+        throw new Error(`Invalid group index ${index}`);
+    }
+
+    const newGroups = state.groups.filter((_, idx) => idx !== index);
+
+    return {
+        ...state,
+        groups: newGroups,
+        // Reset current group to the first one if the current group is the one being removed
+        currentGroup: state.currentGroup === index ? 0 : state.currentGroup
+    };
+}
+
+function updateGroup(state: Readonly<EditorState>, index: number, updatedGroupData: Partial<Group>): EditorState {
+    if (index < 0 || index >= state.groups.length) {
+        throw new Error(`Invalid group index ${index}`);
+    }
+
+    const newGroups = state.groups.map((group, idx) => {
+        if (idx === index) {
+            return { ...group, ...updatedGroupData };
+        }
+        return group;
+    });
+
+    return { ...state, groups: newGroups };
+}
+
+function updateCurrentGroup(state: Readonly<EditorState>, updatedGroupData: Partial<Group>): EditorState {
+    const currentGroupIndex = state.currentGroup;
+
+    const newGroups = state.groups.map((group, idx) => {
+        if (idx === currentGroupIndex) {
+            return { ...group, ...updatedGroupData };
+        }
+        return group;
+    });
+
+    return { ...state, groups: newGroups };
+}
+
+
+function renameStep(state: Readonly<EditorState>, index: number, name: string): EditorState {
+    const currentGroup = state.groups[state.currentGroup];
+    if (!currentGroup) {
+        throw new Error(`Invalid group index ${state.currentGroup}`);
+    }
+
+    const currentScene = currentGroup.scene;
+    if (!currentScene) {
+        throw new Error(`Invalid scene in group ${state.currentGroup}`);
+    }
+
+    const steps = [...currentScene.steps];
+    const objects = [...(steps[index]?.objects ?? [])];
+    const newStep = { ...steps[index], name, objects };
+    steps[index] = newStep;
+
+    const newScene = { ...currentGroup.scene, steps };
+
+    const newGroups = [...state.groups];
+    newGroups[state.currentGroup] = { ...currentGroup, scene: newScene };
+
+    return {
+        ...state,
+        groups: newGroups,
+    };
+}
+
+
+function addStep(state: Readonly<EditorState>, after: number): EditorState {
+    const currentGroup = state.groups[state.currentGroup];
+    if (!currentGroup) {
+        throw new Error(`Invalid group index ${state.currentGroup}`);
+    }
+
+    const currentScene = currentGroup.scene;
+    if (!currentScene) {
+        throw new Error(`Invalid scene in group ${state.currentGroup}`);
+    }
+
+    const currentStep = getCurrentStep(state);
+    const copy = copyObjects(currentScene, currentStep.objects);
+    const { objects, nextId } = assignObjectIds(currentScene, copy);
+    const name = currentStep.name;
+    const newStep: SceneStep = { objects, name };
+
+    const steps = currentScene.steps.slice();
+    steps.splice(after + 1, 0, newStep);
+
+    const newScene = { ...currentScene, nextId, steps };
+    const newGroups = [...state.groups];
+    newGroups[state.currentGroup] = { ...currentGroup, scene: newScene };
+
+    return {
+        ...state,
+        groups: newGroups,
         currentStep: after + 1,
     };
 }
 
+
 function removeStep(state: Readonly<EditorState>, index: number): EditorState {
-    const newSteps = state.scene.steps.slice();
+    const currentGroup = state.groups[state.currentGroup];
+    if (!currentGroup) {
+        throw new Error(`Invalid group index ${state.currentGroup}`);
+    }
+
+    const currentScene = currentGroup.scene;
+    if (!currentScene) {
+        throw new Error(`Invalid scene in group ${state.currentGroup}`);
+    }
+
+    const newSteps = currentScene.steps.slice();
     newSteps.splice(index, 1);
 
     if (newSteps.length === 0) {
@@ -291,15 +520,18 @@ function removeStep(state: Readonly<EditorState>, index: number): EditorState {
     }
     currentStep = clamp(currentStep, 0, newSteps.length - 1);
 
+    const newScene = { ...currentScene, steps: newSteps };
+
+    const newGroups = [...state.groups];
+    newGroups[state.currentGroup] = { ...currentGroup, scene: newScene };
+
     return {
         ...state,
-        scene: {
-            ...state.scene,
-            steps: newSteps,
-        },
+        groups: newGroups,
         currentStep,
     };
 }
+
 
 function updateStep(scene: Readonly<Scene>, index: number, step: SceneStep): Scene {
     const result: Scene = {
@@ -312,20 +544,44 @@ function updateStep(scene: Readonly<Scene>, index: number, step: SceneStep): Sce
 }
 
 function updateCurrentStep(state: Readonly<EditorState>, step: SceneStep): EditorState {
+    const currentGroup = state.groups[state.currentGroup];
+    if (!currentGroup) {
+        throw new Error(`Invalid group index ${state.currentGroup}`);
+    }
+
+    const currentScene = currentGroup.scene;
+    if (!currentScene) {
+        throw new Error(`Invalid scene in group ${state.currentGroup}`);
+    }
+
+    const updatedScene = updateStep(currentScene, state.currentStep, step);
+
+    const newGroups = [...state.groups];
+    newGroups[state.currentGroup] = { ...currentGroup, scene: updatedScene };
+
     return {
         ...state,
-        scene: updateStep(state.scene, state.currentStep, step),
+        groups: newGroups,
     };
 }
+
 
 function addObjects(
     state: Readonly<EditorState>,
     objects: SceneObjectWithoutId | readonly SceneObjectWithoutId[],
 ): EditorState {
+    const currentGroup = state.groups[state.currentGroup];
+    if (!currentGroup) {
+        throw new Error(`Invalid group index ${state.currentGroup}`);
+    }
+
+    const currentScene = currentGroup.scene;
+    if (!currentScene) {
+        throw new Error(`Invalid scene in group ${state.currentGroup}`);
+    }
+
     const currentStep = getCurrentStep(state);
-
-    const { objects: addedObjects, nextId } = assignObjectIds(state.scene, asArray(objects));
-
+    const { objects: addedObjects, nextId } = assignObjectIds(currentScene, asArray(objects));
     const newObjects = [...currentStep.objects];
 
     for (const object of addedObjects) {
@@ -336,14 +592,19 @@ function addObjects(
         }
     }
 
+    const updatedScene = updateStep(currentScene, state.currentStep, { objects: newObjects, name: currentStep.name });
+
+    const newScene = { ...updatedScene, nextId };
+
+    const newGroups = [...state.groups];
+    newGroups[state.currentGroup] = { ...currentGroup, scene: newScene };
+
     return {
         ...state,
-        scene: {
-            ...updateStep(state.scene, state.currentStep, { objects: newObjects }),
-            nextId,
-        },
+        groups: newGroups,
     };
 }
+
 
 function removeObjects(state: Readonly<EditorState>, ids: readonly number[]): EditorState {
     const currentStep = getCurrentStep(state);
@@ -361,7 +622,7 @@ function removeObjects(state: Readonly<EditorState>, ids: readonly number[]): Ed
         return true;
     });
 
-    return updateCurrentStep(state, { objects });
+    return updateCurrentStep(state, { objects, name: currentStep.name });
 }
 
 function moveObject(state: Readonly<EditorState>, from: number, to: number): EditorState {
@@ -375,7 +636,7 @@ function moveObject(state: Readonly<EditorState>, from: number, to: number): Edi
     const items = objects.splice(from, 1);
     objects.splice(to, 0, ...items);
 
-    return updateCurrentStep(state, { objects });
+    return updateCurrentStep(state, { objects, name: currentStep.name });
 }
 
 function mapSelected(step: Readonly<SceneStep>, ids: readonly number[]) {
@@ -401,8 +662,8 @@ function moveGroupUp(state: Readonly<EditorState>, ids: readonly number[]): Edit
             objects[i - 1] = current;
         }
     }
-
-    return updateCurrentStep(state, unmapSelected(objects));
+    const newObjects = unmapSelected(objects).objects;
+    return updateCurrentStep(state, {objects: newObjects, name: currentStep.name});
 }
 
 function moveGroupDown(state: Readonly<EditorState>, ids: readonly number[]): EditorState {
@@ -418,8 +679,8 @@ function moveGroupDown(state: Readonly<EditorState>, ids: readonly number[]): Ed
             objects[i + 1] = current;
         }
     }
-
-    return updateCurrentStep(state, unmapSelected(objects));
+    const newObjects = unmapSelected(objects).objects;
+    return updateCurrentStep(state, {objects: newObjects, name: currentStep.name});
 }
 
 function moveGroupToTop(state: Readonly<EditorState>, ids: readonly number[]): EditorState {
@@ -429,8 +690,8 @@ function moveGroupToTop(state: Readonly<EditorState>, ids: readonly number[]): E
     objects.sort((a, b) => {
         return (a.selected ? 1 : 0) - (b.selected ? 1 : 0);
     });
-
-    return updateCurrentStep(state, unmapSelected(objects));
+    const newObjects = unmapSelected(objects).objects;
+    return updateCurrentStep(state, {objects: newObjects, name: currentStep.name});
 }
 
 function moveGroupToBottom(state: Readonly<EditorState>, ids: readonly number[]): EditorState {
@@ -440,8 +701,8 @@ function moveGroupToBottom(state: Readonly<EditorState>, ids: readonly number[])
     objects.sort((a, b) => {
         return (b.selected ? 1 : 0) - (a.selected ? 1 : 0);
     });
-
-    return updateCurrentStep(state, unmapSelected(objects));
+    const newObjects = unmapSelected(objects).objects;
+    return updateCurrentStep(state, {objects: newObjects, name: currentStep.name});
 }
 
 function updateObjects(state: Readonly<EditorState>, values: readonly SceneObject[]): EditorState {
@@ -455,28 +716,80 @@ function updateObjects(state: Readonly<EditorState>, values: readonly SceneObjec
         }
     }
 
-    return updateCurrentStep(state, { objects });
+    return updateCurrentStep(state, { objects, name: currentStep.name });
 }
 
 function updateArena(state: Readonly<EditorState>, arena: Arena): EditorState {
+    const currentGroup = state.groups[state.currentGroup];
+    if (!currentGroup) {
+        throw new Error(`Invalid group index ${state.currentGroup}`);
+    }
+
+    const currentScene = currentGroup.scene;
+    if (!currentScene) {
+        throw new Error(`Invalid scene in group ${state.currentGroup}`);
+    }
+
+    const updatedScene = { ...currentScene, arena };
+
+    const newGroups = [...state.groups];
+    newGroups[state.currentGroup] = { ...currentGroup, scene: updatedScene };
+
     return {
-        scene: { ...state.scene, arena },
-        currentStep: state.currentStep,
+        ...state,
+        groups: newGroups,
     };
 }
 
+
 function sceneReducer(state: Readonly<EditorState>, action: SceneAction): EditorState {
+    const currentGroup = state.groups[state.currentGroup];
+    if (!currentGroup) {
+        throw new Error(`Invalid group index ${state.currentGroup}`);
+    }
+    
+    const currentScene = currentGroup.scene;
+    if (!currentScene) {
+        throw new Error(`Invalid scene`);
+    }
+
     switch (action.type) {
         case 'setSource':
             return { ...state, source: action.source };
+
+        case 'renameGroup':
+            return renameGroup(state, action.index, action.name);
+
+        case 'setGroup':
+            return setGroup(state, action.index);
+
+        case 'addGroup':
+            return addGroup(state, action.name);
+
+        case 'removeGroup':
+            return removeGroup(state, action.index);
+
+        case 'nextGroup':
+            if (state.currentGroup === state.groups.length - 1) {
+                return state;
+            }
+        
+            return setStep(state, state.currentGroup + 1);
+
+        case 'previousGroup':
+            if (state.currentStep === 0) {
+                return state;
+            }
+            return setStep(state, state.currentGroup - 1);
 
         case 'setStep':
             return setStep(state, action.index);
 
         case 'nextStep':
-            if (state.currentStep === state.scene.steps.length - 1) {
+            if (state.currentStep === currentScene.steps.length - 1) {
                 return state;
             }
+        
             return setStep(state, state.currentStep + 1);
 
         case 'previousStep':
@@ -488,6 +801,9 @@ function sceneReducer(state: Readonly<EditorState>, action: SceneAction): Editor
         case 'addStep':
             return addStep(state, action.after ?? state.currentStep);
 
+        case 'renameStep':
+            return renameStep(state, action.index, action.name);
+
         case 'removeStep':
             return removeStep(state, action.index);
 
@@ -495,25 +811,25 @@ function sceneReducer(state: Readonly<EditorState>, action: SceneAction): Editor
             return updateArena(state, action.value);
 
         case 'arenaShape':
-            return updateArena(state, { ...state.scene.arena, shape: action.value });
-
+            return updateArena(state, { ...currentScene.arena, shape: action.value });
+            
         case 'arenaWidth':
-            return updateArena(state, { ...state.scene.arena, width: action.value });
+            return updateArena(state, { ...currentScene.arena, width: action.value });
 
         case 'arenaHeight':
-            return updateArena(state, { ...state.scene.arena, height: action.value });
+            return updateArena(state, { ...currentScene.arena, height: action.value });
 
         case 'arenaPadding':
-            return updateArena(state, { ...state.scene.arena, padding: action.value });
+            return updateArena(state, { ...currentScene.arena, padding: action.value });
 
         case 'arenaGrid':
-            return updateArena(state, { ...state.scene.arena, grid: action.value });
+            return updateArena(state, { ...currentScene.arena, grid: action.value });
 
         case 'arenaBackground':
-            return updateArena(state, { ...state.scene.arena, backgroundImage: action.value });
+            return updateArena(state, { ...currentScene.arena, backgroundImage: action.value });
 
         case 'arenaBackgroundOpacity':
-            return updateArena(state, { ...state.scene.arena, backgroundOpacity: action.value });
+            return updateArena(state, { ...currentScene.arena, backgroundOpacity: action.value });
 
         case 'add':
             return addObjects(state, action.object);

@@ -22,13 +22,11 @@ import {
     useTheme,
 } from '@fluentui/react';
 import { useConst, useForceUpdate } from '@fluentui/react-hooks';
-import React, { FormEvent, useCallback, useMemo, useState } from 'react';
-import { useAsync } from 'react-async';
-import { useCounter } from 'react-use';
+import React, { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { BaseDialog, IBaseDialogStyles } from '../BaseDialog';
 import { openFile, saveFile, textToScene } from '../file';
-import { Scene } from '../scene';
-import { FileSource, useLoadScene, useScene } from '../SceneProvider';
+import { Group } from '../scene';
+import { FileSource, useEditorState, useLoadGroup, useLoadScene } from '../SceneProvider';
 import { useIsDirty, useSetSavedState } from '../useIsDirty';
 import { confirmDeleteFile, confirmOverwriteFile, confirmUnsavedChanges } from './confirm';
 import { deleteFileLocal, FileEntry, listLocalFiles } from './localFile';
@@ -156,14 +154,33 @@ const listStyles: Partial<IDetailsListStyles> = {
 };
 
 const OpenLocalFile: React.FC<SourceTabProps> = ({ onDismiss }) => {
-    const loadScene = useLoadScene();
+    const loadGroup = useLoadGroup();
     const setSavedState = useSetSavedState();
     const isDirty = useIsDirty();
     const theme = useTheme();
 
-    const [counter, { inc: reloadFiles }] = useCounter();
-    const { data: files, error, isPending } = useAsync(listLocalFiles, { watch: counter });
-
+    const [files, setFiles] = useState<FileEntry[] | undefined>(undefined); 
+    const [error, setError] = useState<Error | null>(null);
+    const [isPending, setIsPending] = useState(true); // Start with true to indicate loading
+    const [reloadFlag, setReloadFlag] = useState(0); // Replaces 'counter'
+    
+    const reloadFiles = () => setReloadFlag(prev => prev + 1); // Replaces 'inc: reloadFiles'
+    
+    useEffect(() => {
+        setIsPending(true);
+        listLocalFiles()
+            .then(fetchedFiles => {
+                setFiles(fetchedFiles);
+                setError(null); // Clear any previous error
+                setIsPending(false);
+            })
+            .catch(err => {
+                setError(err);
+                setFiles(undefined); // Clear any previous files
+                setIsPending(false);
+            });
+    }, [reloadFlag]); // Dependency on 'reloadFlag' to trigger re-loading
+    
     const columns = useMemo(() => getOpenFileColumns(theme, reloadFiles), [theme, reloadFiles]);
 
     const forceUpdate = useForceUpdate();
@@ -183,12 +200,12 @@ const OpenLocalFile: React.FC<SourceTabProps> = ({ onDismiss }) => {
         }
 
         const source: FileSource = { type: 'local', name };
-        const scene = await openFile(source);
+        const groups = await openFile(source);
 
-        loadScene(scene, source);
-        setSavedState(scene);
+        loadGroup(groups, source);
+        setSavedState(groups);
         onDismiss?.();
-    }, [selection, files, isDirty, theme, loadScene, setSavedState, onDismiss]);
+    }, [selection, files, isDirty, theme, loadGroup, setSavedState, onDismiss]);
 
     if (isPending) {
         return <Spinner />;
@@ -204,7 +221,7 @@ const OpenLocalFile: React.FC<SourceTabProps> = ({ onDismiss }) => {
         <>
             <DetailsList
                 columns={columns}
-                items={files}
+                items={files??[]}
                 layoutMode={DetailsListLayoutMode.fixedColumns}
                 constrainMode={ConstrainMode.unconstrained}
                 selectionMode={SelectionMode.single}
@@ -220,7 +237,7 @@ const OpenLocalFile: React.FC<SourceTabProps> = ({ onDismiss }) => {
     );
 };
 
-function decodeScene(text: string): Scene | undefined {
+function decodeGroups(text: string): Group[] | undefined {
     try {
         return parseSceneLink(new URL(text));
     } catch (ex) {
@@ -240,8 +257,29 @@ function decodeScene(text: string): Scene | undefined {
     return undefined;
 }
 
+// function decodeScene(text: string): Scene | undefined {
+//     try {
+//         return parseSceneLink(new URL(text));
+//     } catch (ex) {
+//         if (!(ex instanceof TypeError)) {
+//             console.error('Invalid plan data', ex);
+//             return undefined;
+//         }
+//     }
+
+//     // Not a URL. Try as plain data.
+//     try {
+//         return textToScene(decodeURIComponent(text));
+//     } catch (ex) {
+//         console.error('Invalid plan data', ex);
+//     }
+
+//     return undefined;
+// }
+
 const ImportFromString: React.FC<SourceTabProps> = ({ onDismiss }) => {
     const loadScene = useLoadScene();
+    const loadGroup = useLoadGroup();
     const setSavedState = useSetSavedState();
     const isDirty = useIsDirty();
     const theme = useTheme();
@@ -259,14 +297,21 @@ const ImportFromString: React.FC<SourceTabProps> = ({ onDismiss }) => {
             }
         }
 
-        const scene = decodeScene(data);
-        if (!scene) {
+        
+        const groups = decodeGroups(data);
+        if (!groups) {
             setError('Invalid link');
             return;
         }
 
-        loadScene(scene, undefined);
-        setSavedState(scene);
+        // const scene = decodeScene(data);
+        // if (!scene) {
+        //     setError('Invalid link');
+        //     return;
+        // }
+
+        loadGroup(groups, undefined);
+        setSavedState(groups);
         onDismiss?.();
     }, [data, isDirty, theme, loadScene, setSavedState, onDismiss]);
 
@@ -312,47 +357,40 @@ function getInitialName(source: FileSource | undefined) {
 
 const SaveLocalFile: React.FC<SourceTabProps> = ({ onDismiss }) => {
     const setSavedState = useSetSavedState();
-    const files = useAsync(listLocalFiles);
-    const { scene, source, dispatch } = useScene();
+    const { groups, source, dispatch } = useEditorState();
+    if (dispatch === undefined) throw new Error('dispatch is undefined');
     const [name, setName] = useState(getInitialName(source));
+    const [files, setFiles] = useState<FileEntry[]>([]);
+    const [isFilesLoading, setIsFilesLoading] = useState(true);
     const theme = useTheme();
 
-    const alreadyExists = useMemo(() => files.data?.some((f) => f.name === name), [files.data, name]);
-    const canSave = !!name && !files.isPending;
+    useEffect(() => {
+        setIsFilesLoading(true);
+        listLocalFiles().then(fetchedFiles => {
+            setFiles(fetchedFiles);
+            setIsFilesLoading(false);
+        });
+    }, []); // Empty dependency array to run once on mount
 
-    const saveCallback = useCallback(async () => {
+    const alreadyExists = useMemo(() => files.some((f) => f.name === name), [files, name]);
+    const canSave = !!name && !isFilesLoading;
+
+    const saveCallback = async () => {
         if (!canSave) {
             return;
         }
 
-        if (alreadyExists) {
-            if (!(await confirmOverwriteFile(theme))) {
-                return;
-            }
+        if (alreadyExists && !(await confirmOverwriteFile(theme))) {
+            return;
         }
 
         const source: FileSource = { type: 'local', name };
-        await saveFile(scene, source);
+        await saveFile(groups, source);
 
         dispatch({ type: 'setSource', source });
-        setSavedState(scene);
+        setSavedState(groups);
         onDismiss?.();
-    }, [scene, name, canSave, alreadyExists, theme, dispatch, onDismiss, setSavedState]);
-
-    const onKeyPress = useCallback(
-        (ev: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-            if (ev.key === 'Enter') {
-                saveCallback();
-            }
-        },
-        [saveCallback],
-    );
-
-    const save = useAsync({ deferFn: saveCallback });
-
-    if (save.isPending) {
-        return <Spinner />;
-    }
+    };
 
     return (
         <>
@@ -361,13 +399,12 @@ const SaveLocalFile: React.FC<SourceTabProps> = ({ onDismiss }) => {
                     label="File name"
                     value={name}
                     onChange={(e, v) => setName(v)}
-                    onKeyPress={onKeyPress}
                     errorMessage={alreadyExists ? 'A file with this name already exists.' : undefined}
                 />
             </div>
 
             <DialogFooter className={classNames.footer}>
-                <PrimaryButton text="Save" disabled={!canSave} onClick={save.run} />
+                <PrimaryButton text="Save" disabled={!canSave} onClick={saveCallback} />
                 <DefaultButton text="Cancel" onClick={onDismiss} />
             </DialogFooter>
         </>

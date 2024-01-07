@@ -3,19 +3,19 @@ import { deflate, inflate } from 'pako';
 
 import { FileSource, LocalFileSource } from './SceneProvider';
 import { openFileLocal, saveFileLocal } from './file/localFile';
-import { upgradeScene } from './file/upgrade';
-import { Scene } from './scene';
+import { upgradeGroups } from './file/upgrade';
+import { Group, Scene } from './scene';
 
-export async function saveFile(scene: Readonly<Scene>, source: FileSource): Promise<void> {
+export async function saveFile(groups: Readonly<Group[]>, source: FileSource): Promise<void> {
     switch (source.type) {
         case 'local':
-            await saveFileLocal(scene, source.name);
+            await saveFileLocal(groups, source.name);
     }
 }
 
-export async function openFile(source: FileSource): Promise<Scene> {
+export async function openFile(source: FileSource): Promise<Group[]> {
     const scene = await openFileUnvalidated(source);
-    return upgradeScene(scene);
+    return upgradeGroups(scene);
 }
 
 async function openFileUnvalidated(source: LocalFileSource) {
@@ -25,27 +25,27 @@ async function openFileUnvalidated(source: LocalFileSource) {
     }
 }
 
-export function sceneToText(scene: Readonly<Scene>): string {
-    const compressed = deflate(sceneToJson(scene));
+export function sceneToText(groups: Readonly<Group[]>): string {
+    const compressed = deflate(sceneToJson(groups));
 
     return Base64.fromUint8Array(compressed, true);
 }
 
-export function textToScene(data: string): Scene {
+export function textToScene(data: string): Group[] {
     const decompressed = inflate(Base64.toUint8Array(data));
 
     return jsonToScene(new TextDecoder().decode(decompressed));
 }
 
-export function sceneToJson(scene: Readonly<Scene>): string {
-    return JSON.stringify(scene, undefined, 2);
+export function sceneToJson(groups: Readonly<Group[]>): string {
+    return JSON.stringify(groups, undefined, 2);
 }
 
-export function jsonToScene(json: string): Scene {
-    const scene = upgradeScene(JSON.parse(json));
+export function jsonToScene(json: string): Group[] {
+    const groups = upgradeGroups(JSON.parse(json));
 
-    validateScene(scene);
-    return scene;
+    validateScene(groups);
+    return groups;
 }
 
 function validateScene(obj: unknown): asserts obj is Scene {

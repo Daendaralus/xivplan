@@ -1,8 +1,8 @@
 import { sceneToText, textToScene } from '../file';
-import { Scene } from '../scene';
+import { Group } from '../scene';
 
-export function getShareLink(scene: Scene): string {
-    const data = sceneToText(scene);
+export function getShareLink(groups: Group[]): string {
+    const data = sceneToText(groups);
     return `${location.protocol}//${location.host}${location.pathname}#/plan/${data}`;
 }
 
@@ -23,9 +23,9 @@ function getPlanData(hash: string, searchParams?: URLSearchParams): string | und
     return undefined;
 }
 
-export function parseSceneLink(url: URL): Scene | undefined;
-export function parseSceneLink(hash: string, searchParams: URLSearchParams): Scene | undefined;
-export function parseSceneLink(hash: string | URL, searchParams?: URLSearchParams): Scene | undefined {
+export function parseSceneLink(url: URL): Group[] | undefined;
+export function parseSceneLink(hash: string, searchParams: URLSearchParams): Group[] | undefined;
+export function parseSceneLink(hash: string | URL, searchParams?: URLSearchParams): Group[] | undefined {
     if (hash instanceof URL) {
         return parseSceneLink(hash.hash, hash.searchParams);
     }

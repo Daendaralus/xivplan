@@ -29,7 +29,8 @@ function getStyles(theme: Theme): IAppStyles {
             gridTemplateRows: `min-content auto 1fr`,
             gridTemplateAreas: `
                 "header     header  header"
-                "left-panel steps   right-panel"
+                "left-panel groups   right-panel"
+                "left-panel steps right-panel"
                 "left-panel content right-panel"
             `,
         },

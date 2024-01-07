@@ -10,7 +10,7 @@ import {
     useTheme,
 } from '@fluentui/react';
 import React, { useMemo, useState } from 'react';
-import { useScene } from './SceneProvider';
+import { useEditorState } from './SceneProvider';
 
 const getButtonStyles: IStyleFunction<Theme, IButtonStyles> = (theme) => {
     return {
@@ -29,32 +29,32 @@ const getButtonStyles: IStyleFunction<Theme, IButtonStyles> = (theme) => {
     };
 };
 
-interface StepButtonProps {
+interface GroupButtonProps {
     index: number;
 }
 
-const StepButton: React.FC<StepButtonProps> = ({ index }) => {
-    const { scene, stepIndex, dispatch } = useScene();
+const GroupButton: React.FC<GroupButtonProps> = ({ index }) => {
+    const { groups, currentGroup, dispatch } = useEditorState(); // Adjusted to use groups
     const [isEditing, setIsEditing] = useState(false);
-    const currentName =  scene.steps[index]?.name ?? `${index + 1}`;
+    const currentName = groups[index]?.name ?? `Group ${index + 1}`;
     const [newName, setNewName] = useState(currentName);
-    //console.log('curname', scene.steps[index]?.name)
-    const handleDoubleClick = () => {
-        setIsEditing(true);
-    };
+
+    if (dispatch === undefined) throw new Error('dispatch is undefined');
+
+    const handleDoubleClick = () => setIsEditing(true);
 
     const handleBlur = () => {
         setIsEditing(false);
-        dispatch({ type: 'renameStep', index, name: newName });
+        dispatch({ type: 'renameGroup', index, name: newName }); // Dispatch to rename group
     };
-    const checked = index === stepIndex;
+
+    const checked = index === currentGroup;
 
     const theme = useTheme();
     const buttonStyles = useMemo(() => getButtonStyles(theme), [theme]);
+
     const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            handleBlur();
-        }
+        if (e.key === 'Enter') handleBlur();
     };
 
     return isEditing ? (
@@ -69,34 +69,37 @@ const StepButton: React.FC<StepButtonProps> = ({ index }) => {
     ) : (
         <DefaultButton
             text={currentName}
-            title={`Step ${currentName}`}
+            title={`Group ${currentName}`}
             checked={checked}
-            onClick={() => dispatch({ type: 'setStep', index })}
+            onClick={() => dispatch({ type: 'setGroup', index })} // Dispatch to set current group
             onDoubleClick={handleDoubleClick}
             styles={buttonStyles}
         />
     );
 };
 
-const AddStepButton: React.FC = () => {
-    const { dispatch } = useScene();
 
+const AddGroupButton: React.FC = () => {
+    const { dispatch } = useEditorState();
+
+    if (dispatch === undefined) throw new Error('dispatch is undefined');
     const theme = useTheme();
     const buttonStyles = useMemo(() => getButtonStyles(theme), [theme]);
 
     return (
         <IconButton
-            title="Add new step"
+            title="Add new Group"
             iconProps={{ iconName: 'Add' }}
-            onClick={() => dispatch({ type: 'addStep' })}
+            onClick={() => dispatch({ type: 'addGroup' })}
             styles={buttonStyles}
         />
     );
 };
 
-const RemoveStepButton: React.FC = () => {
-    const { scene, stepIndex, dispatch } = useScene();
+const RemoveGroupButton: React.FC = () => {
+    const { groups, currentGroup, dispatch } = useEditorState();
 
+    if (dispatch === undefined) throw new Error('dispatch is undefined');
     const theme = useTheme();
     const buttonStyles = useMemo(() => getButtonStyles(theme), [theme]);
 
@@ -104,8 +107,8 @@ const RemoveStepButton: React.FC = () => {
         <IconButton
             title="Delete current step"
             iconProps={{ iconName: 'Delete' }}
-            disabled={scene.steps.length < 2}
-            onClick={() => dispatch({ type: 'removeStep', index: stepIndex })}
+            disabled={groups.length < 2}
+            onClick={() => dispatch({ type: 'removeGroup', index: currentGroup })}
             styles={buttonStyles}
         />
     );
@@ -119,11 +122,11 @@ interface IStepSelectStyles {
 
 const getClassNames = classNamesFunction<Theme, IStepSelectStyles>();
 
-const getStepSelectStyles: IStyleFunction<Theme, IStepSelectStyles> = (theme) => {
+const getGroupSelectStyles: IStyleFunction<Theme, IStepSelectStyles> = (theme) => {
     return {
         root: {
-            gridArea: 'steps',
-            backgroundColor: theme.palette.neutralLighterAlt,
+            gridArea: 'groups',
+            backgroundColor: theme.palette.neutralLighter,
             padding: 4,
 
             ul: {
@@ -142,26 +145,26 @@ const getStepSelectStyles: IStyleFunction<Theme, IStepSelectStyles> = (theme) =>
     };
 };
 
-export const StepSelect: React.FC = () => {
-    const { scene } = useScene();
+export const GroupSelect: React.FC = () => {
+    const { groups } = useEditorState();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    const steps = useMemo(() => scene.steps.map((_, i) => i), [scene.steps.length]);
+    const scenes = useMemo(() => groups.map((_, i) => i), [groups.length]);
 
     const theme = useTheme();
-    const classNames = getClassNames(getStepSelectStyles, theme);
+    const classNames = getClassNames(getGroupSelectStyles, theme);
 
     return (
         <Stack horizontal tokens={{ childrenGap: BUTTON_SPACING }} className={classNames.root}>
             <ul>
-                {steps.map((i) => (
+                {scenes.map((i) => (
                     <li key={i}>
-                        <StepButton index={i} />
+                        <GroupButton index={i} />
                     </li>
                 ))}
             </ul>
             <Stack horizontal tokens={{ childrenGap: BUTTON_SPACING }}>
-                <AddStepButton />
-                <RemoveStepButton />
+                <AddGroupButton />
+                <RemoveGroupButton />
             </Stack>
         </Stack>
     );

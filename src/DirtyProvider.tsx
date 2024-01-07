@@ -3,16 +3,16 @@ import { Action } from 'history';
 import React, { Dispatch, PropsWithChildren, createContext, useCallback, useState } from 'react';
 import { Location, useNavigate } from 'react-router-dom';
 import { useBeforeUnload } from 'react-use';
-import { useScene } from './SceneProvider';
-import { Scene } from './scene';
+import { useEditorState } from './SceneProvider';
+import { Group } from './scene';
 
 export const DirtyContext = createContext(false);
-export const SavedStateContext = createContext<Dispatch<Scene>>(() => undefined);
+export const SavedStateContext = createContext<Dispatch<Group[]>>(() => undefined);
 
 export const DirtyProvider: React.FC<PropsWithChildren> = ({ children }) => {
-    const { scene } = useScene();
-    const [savedState, setSavedState] = useState<Scene>(scene);
-    const isDirty = scene !== savedState;
+    const { groups } = useEditorState();
+    const [savedState, setSavedState] = useState<Group[]>(groups);
+    const isDirty = groups !== savedState;
 
     return (
         <SavedStateContext.Provider value={setSavedState}>

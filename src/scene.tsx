@@ -412,6 +412,12 @@ export type SceneObjectWithoutId = Omit<SceneObject, 'id'> & { id?: number };
 
 export interface SceneStep {
     readonly objects: readonly SceneObject[];
+    readonly name?: string;
+}
+
+export interface Group {
+    readonly scene: Scene;
+    readonly name?: string;
 }
 
 export interface Scene {
@@ -462,4 +468,9 @@ export const DEFAULT_SCENE: Scene = {
     nextId: 1,
     arena: DEFAULT_ARENA,
     steps: [{ objects: [] }],
+};
+
+export const DEFAULT_GROUP: Group = {
+    scene: DEFAULT_SCENE,
+    name: 'New Group',
 };

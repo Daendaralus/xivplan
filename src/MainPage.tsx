@@ -4,6 +4,7 @@ import { useLocation, useSearchParams } from 'react-router-dom';
 import { DirtyProvider } from './DirtyProvider';
 import { EditModeProvider } from './EditModeProvider';
 import { parseSceneLink } from './file/share';
+import { GroupSelect } from './GroupSelect';
 import { RegularHotkeyHandler } from './HotkeyHandler';
 import { MainCommandBar } from './MainCommandBar';
 import { DetailsPanel } from './panel/DetailsPanel';
@@ -32,7 +33,7 @@ export const MainPage: React.FC = () => {
     }, [hash, searchParams]);
 
     return (
-        <SceneProvider initialScene={initialScene}>
+        <SceneProvider initialGroup={initialScene}>
             <DirtyProvider>
                 <EditModeProvider>
                     <SelectionProvider>
@@ -66,7 +67,7 @@ const MainPageContent: React.FC = () => {
             <MainCommandBar />
 
             <MainPanel />
-
+            <GroupSelect />
             <StepSelect />
 
             <div className={classNames.stage}>

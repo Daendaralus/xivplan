@@ -1,6 +1,18 @@
 import { Vector2d } from 'konva/lib/types';
 import { DEFAULT_ENEMY_OPACITY } from '../render/SceneTheme';
-import { DrawObject, EnemyObject, Scene, SceneObject, SceneStep, isDrawObject, isEnemy } from '../scene';
+import { DrawObject, EnemyObject, Group, Scene, SceneObject, SceneStep, isDrawObject, isEnemy } from '../scene';
+// import { Group } from 'konva/lib/Group';
+
+export function upgradeGroups(groups: Group[]): Group[] {
+    return groups.map(upgradeGroup)
+}
+
+function upgradeGroup(group: Group): Group {
+    return {
+        ...group,
+        scene: upgradeScene(group.scene),
+    };
+}
 
 export function upgradeScene(scene: Scene): Scene {
     return {
