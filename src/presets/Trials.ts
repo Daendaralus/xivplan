@@ -1,4 +1,5 @@
 import { ArenaPreset, ArenaShape, DEFAULT_ARENA_PADDING, GridType } from '../scene';
+import cloud_deck from '/arena/cloud-deck.png';
 
 const PRESET_DIAMOND_WEAPON_1: ArenaPreset = {
     name: 'The Cloud Deck',
@@ -7,7 +8,7 @@ const PRESET_DIAMOND_WEAPON_1: ArenaPreset = {
     height: 600,
     padding: DEFAULT_ARENA_PADDING,
     grid: { type: GridType.None },
-    backgroundImage: '/arena/cloud-deck.png',
+    backgroundImage: cloud_deck,
 };
 
 const PRESET_DIAMOND_WEAPON_2: ArenaPreset = {

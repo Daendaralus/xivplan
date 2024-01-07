@@ -1,3 +1,5 @@
+import ucob_p3 from '/arena/ucob-p3.png';
+import ucob_p4 from '/arena/ucob-p4.png';
 import { ArenaPreset, ArenaShape, DEFAULT_ARENA_PADDING, GridType } from '../../scene';
 
 const PRESET_3: ArenaPreset = {
@@ -7,7 +9,7 @@ const PRESET_3: ArenaPreset = {
     height: 600,
     padding: DEFAULT_ARENA_PADDING,
     grid: { type: GridType.None },
-    backgroundImage: '/arena/ucob-p3.png',
+    backgroundImage: ucob_p3,
 };
 
 const PRESET_4: ArenaPreset = {
@@ -17,7 +19,7 @@ const PRESET_4: ArenaPreset = {
     height: 600,
     padding: DEFAULT_ARENA_PADDING,
     grid: { type: GridType.None },
-    backgroundImage: '/arena/ucob-p4.png',
+    backgroundImage: ucob_p4,
 };
 
 export const ARENA_PRESETS_ULTIMATE_UCOB = [PRESET_3, PRESET_4];

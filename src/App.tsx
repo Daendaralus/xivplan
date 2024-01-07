@@ -66,7 +66,7 @@ export const App: React.FC = () => {
     return (
         <BaseProviders>
             <Routes>
-                <Route path="/" element={<Layout />}>
+                <Route path= "/xivplan/" element={<Layout />}>
                     <Route index element={<MainPage />} />
                 </Route>
             </Routes>

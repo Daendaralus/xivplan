@@ -2,7 +2,7 @@
   "name": "xivplan",
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://Daendaralus.github.io/",
+  "homepage": ".",
   "scripts": {
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist",

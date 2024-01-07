@@ -73,5 +73,5 @@ export function getJob(job: Job): JobProps {
 }
 
 export function getJobIconUrl(icon: string): string {
-    return `/actor/${icon}`;
+    return `./actor/${icon}`;
 }

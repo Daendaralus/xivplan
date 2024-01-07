@@ -1,3 +1,11 @@
+import p7 from '/arena/p7.png';
+import p10 from '/arena/p10.png';
+import p11 from '/arena/p11.png';
+import p12 from '/arena/p12.png';
+import p12_checker from '/arena/p12_checker.png';
+import p12_checker2 from '/arena/p12_checker2.png';
+import p12_octagon from '/arena/p12_octagon.png';
+import p12_p2 from '/arena/p12-p2.png';
 import { ArenaPreset, ArenaShape, DEFAULT_ARENA_PADDING, GridType } from '../../scene';
 import { SPOKES_45_DEGREES } from '../Components';
 
@@ -8,7 +16,7 @@ const PRESET_7: ArenaPreset = {
     height: 700,
     padding: 50,
     grid: { type: GridType.None },
-    backgroundImage: '/arena/p7.png',
+    backgroundImage: p7,
 };
 
 const PRESET_9: ArenaPreset = {
@@ -31,7 +39,7 @@ const PRESET_10: ArenaPreset = {
     height: 12 * 60,
     padding: 50,
     grid: { type: GridType.None },
-    backgroundImage: '/arena/p10.png',
+    backgroundImage: p10,
 };
 
 const PRESET_10_CENTER: ArenaPreset = {
@@ -54,7 +62,7 @@ const PRESET_11: ArenaPreset = {
     height: 600,
     padding: DEFAULT_ARENA_PADDING,
     grid: { type: GridType.None },
-    backgroundImage: '/arena/p11.png',
+    backgroundImage: p11,
 };
 
 const PRESET_12: ArenaPreset = {
@@ -68,7 +76,7 @@ const PRESET_12: ArenaPreset = {
         rows: 4,
         columns: 2,
     },
-    backgroundImage: '/arena/p12.png',
+    backgroundImage: p12,
 };
 
 const PRESET_12_CHECKERBOARD: ArenaPreset = {
@@ -82,7 +90,7 @@ const PRESET_12_CHECKERBOARD: ArenaPreset = {
         rows: 4,
         columns: 2,
     },
-    backgroundImage: '/arena/p12_checker.png',
+    backgroundImage: p12_checker,
 };
 
 const PRESET_12_CHECKERBOARD_2: ArenaPreset = {
@@ -96,7 +104,7 @@ const PRESET_12_CHECKERBOARD_2: ArenaPreset = {
         rows: 4,
         columns: 2,
     },
-    backgroundImage: '/arena/p12_checker2.png',
+    backgroundImage: p12_checker2,
 };
 
 const PRESET_12_OCTAGON: ArenaPreset = {
@@ -110,7 +118,7 @@ const PRESET_12_OCTAGON: ArenaPreset = {
         rows: [-225, 0, 225],
         columns: [0],
     },
-    backgroundImage: '/arena/p12_octagon.png',
+    backgroundImage: p12_octagon,
 };
 
 const PRESET_12_PHASE_2: ArenaPreset = {
@@ -124,7 +132,7 @@ const PRESET_12_PHASE_2: ArenaPreset = {
         rows: 3,
         columns: 2,
     },
-    backgroundImage: '/arena/p12-p2.png',
+    backgroundImage: p12_p2,
 };
 
 export const ARENA_PRESETS_SAVAGE_PANDAEMONIUM = [

@@ -1,5 +1,6 @@
 import { ArenaPreset, ArenaShape, DEFAULT_ARENA_PADDING, GridType } from '../../scene';
 import { SPOKES_45_DEGREES } from '../Components';
+import e8 from '/arena/e8.png';
 
 const PRESET_2: ArenaPreset = {
     name: "Eden's Gate: Descent (E2)",
@@ -38,7 +39,7 @@ const PRESET_8: ArenaPreset = {
         rings: [120, 240],
         spokes: SPOKES_45_DEGREES,
     },
-    backgroundImage: '/arena/e8.png',
+    backgroundImage: e8,
     backgroundOpacity: 65,
 };
 

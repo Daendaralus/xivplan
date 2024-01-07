@@ -1,3 +1,9 @@
+import dsu_p1 from '/arena/dsu-p1.png';
+import dsu_p2a from '/arena/dsu-p2a.png';
+import dsu_p2b from '/arena/dsu-p2b.png';
+import dsu_p3 from '/arena/dsu-p3.png';
+import dsu_p4 from '/arena/dsu-p4.png';
+import dsu_p5 from '/arena/dsu-p5.png';
 import { ArenaPreset, ArenaShape, DEFAULT_ARENA_PADDING, GridType } from '../../scene';
 
 const PRESET_1: ArenaPreset = {
@@ -7,7 +13,7 @@ const PRESET_1: ArenaPreset = {
     height: 600,
     padding: DEFAULT_ARENA_PADDING,
     grid: { type: GridType.None },
-    backgroundImage: '/arena/dsu-p1.png',
+    backgroundImage: dsu_p1,
 };
 
 const PRESET_2A: ArenaPreset = {
@@ -17,7 +23,7 @@ const PRESET_2A: ArenaPreset = {
     height: 600,
     padding: DEFAULT_ARENA_PADDING,
     grid: { type: GridType.None },
-    backgroundImage: '/arena/dsu-p2a.png',
+    backgroundImage: dsu_p2a,
 };
 
 const PRESET_2B: ArenaPreset = {
@@ -27,7 +33,7 @@ const PRESET_2B: ArenaPreset = {
     height: 600,
     padding: DEFAULT_ARENA_PADDING,
     grid: { type: GridType.None },
-    backgroundImage: '/arena/dsu-p2b.png',
+    backgroundImage: dsu_p2b,
 };
 
 const PRESET_3: ArenaPreset = {
@@ -37,7 +43,7 @@ const PRESET_3: ArenaPreset = {
     height: 600,
     padding: DEFAULT_ARENA_PADDING,
     grid: { type: GridType.None },
-    backgroundImage: '/arena/dsu-p3.png',
+    backgroundImage: dsu_p3,
 };
 
 const PRESET_4: ArenaPreset = {
@@ -47,7 +53,7 @@ const PRESET_4: ArenaPreset = {
     height: 600,
     padding: DEFAULT_ARENA_PADDING,
     grid: { type: GridType.None },
-    backgroundImage: '/arena/dsu-p4.png',
+    backgroundImage: dsu_p4,
 };
 
 const PRESET_5: ArenaPreset = {
@@ -57,7 +63,7 @@ const PRESET_5: ArenaPreset = {
     height: 600,
     padding: DEFAULT_ARENA_PADDING,
     grid: { type: GridType.None },
-    backgroundImage: '/arena/dsu-p5.png',
+    backgroundImage: dsu_p5,
 };
 
 export const ARENA_PRESETS_ULTIMATE_DSU = [PRESET_1, PRESET_2A, PRESET_2B, PRESET_3, PRESET_4, PRESET_5];
