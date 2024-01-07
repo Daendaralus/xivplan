@@ -87,6 +87,10 @@ const classNames = mergeStyleSets({
         float: 'left',
         margin: 5,
     } as IStyle,
+    itemImage: {
+        width: 32,
+        height: 32
+    } as IStyle,
 });
 
 interface Pagination {
@@ -101,6 +105,7 @@ interface Pagination {
 
 interface StatusItem {
     ID: number;
+    IconHD?: string;
     Icon: string;
     Name: string;
 }
@@ -135,7 +140,7 @@ const onRenderCell = (item?: StatusItem): JSX.Element | null => {
     }
     return (
         <div className={classNames.listItem}>
-            <StatusIcon name={item.Name} icon={`https://xivapi.com${item.Icon}`} />
+            <StatusIcon  name={item.Name} icon={`https://xivapi.com${item.Icon}`} maxDim={[32, 32]} />
         </div>
     );
 };
@@ -143,23 +148,50 @@ const onRenderCell = (item?: StatusItem): JSX.Element | null => {
 const fetchStatuses = async (search: string, signal: AbortSignal, language: Language = 'en'): Promise<StatusItem[]> => {
     const items: StatusItem[] = [];
 
-    let pageIndex: number | null = 1;
-
+    let pageIndex: number | null = 0;
+    const searchSize: number = 20;
     do {
-        const params = new URLSearchParams({
-            language,
-            indexes: 'Status',
-            string: search,
-            page: pageIndex.toString(),
-        });
-        const response = await fetch(`https://xivapi.com/search?${params}`, { signal });
+        const body = {
+            "indexes": "status",
+            "columns": "ID,Name,Icon,IconHD",
+            "body": {
+              "query": {
+                "bool": {
+                  "must": [
+                    {
+                      "wildcard": {
+                        "NameCombined_en": `*${search}*`
+                      }
+                    }
+                  ]
+                }
+              },
+                "from": pageIndex*searchSize,
+            "size": searchSize,
+              "sort": [{"ID":"asc"}]
+            }
+          }
+        const response = await fetch(`https://xivapi.com/search`,{method:'POST', body: JSON.stringify(body), signal});
         const page = (await response.json()) as Page;
-
         items.push(...page.Results);
-
+        if (page.Pagination.ResultsTotal>pageIndex*searchSize) {
+            pageIndex = pageIndex+1;
+        }
+        else {
+            pageIndex = null;
+        }
         pageIndex = page.Pagination.PageNext;
     } while (pageIndex !== null);
 
+    // Replace item icons with HD versions if available
+    for (const item of items) {
+        let icon = item.IconHD??item.Icon;
+        if (item.IconHD===""){
+            icon = item.Icon;
+        }
+        item.Icon = icon;
+    }
+    console.log(items);
     return items;
 };
 
@@ -223,7 +255,7 @@ const StatusSearch: React.FC<StatusSearchProps> = ({ filter, onFilterChanged }) 
             />
 
             <div className={classNames.list}>
-                <List items={items.value ?? []} onRenderCell={onRenderCell} />
+                <List items={items.value??[]} onRenderCell={onRenderCell} />
 
                 {items.loading && <ProgressIndicator />}
                 {!items.loading && filter && items.value?.length === 0 && <p>No results.</p>}

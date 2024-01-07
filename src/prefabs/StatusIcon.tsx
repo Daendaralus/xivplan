@@ -64,21 +64,21 @@ registerListComponent<IconObject>(ObjectType.Icon, IconDetails);
 export interface StatusIconProps {
     name: string;
     icon: string;
+    maxDim?: number[]
 }
 
-export const StatusIcon: React.FC<StatusIconProps> = ({ name, icon }) => {
+export const StatusIcon: React.FC<StatusIconProps> = ({ name, icon, maxDim }) => {
     const [, setDragObject] = usePanelDrag();
     const [image] = useImage(icon);
-
-    const { width, height } = image ?? {};
-
+    const { width, height } = image ?? {}
+    let { width:panelwidth, height:panelheight } = maxDim? {width:Math.min(maxDim[0]??DEFAULT_SIZE), height:Math.min(maxDim[1]??DEFAULT_SIZE)} : (image ?? {});
     return (
         <PrefabIcon
             draggable
             name={name}
             icon={icon}
-            width={width}
-            height={height}
+            width={panelwidth}
+            height={panelheight}
             onDragStart={(e) => {
                 setDragObject({
                     object: {
