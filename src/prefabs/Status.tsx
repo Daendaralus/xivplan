@@ -3,7 +3,7 @@ import { StatusIcon } from './StatusIcon';
 
 function makeIcon(name: string, icon: string) {
     // eslint-disable-next-line react/display-name
-    return () => <StatusIcon name={name} icon={`/marker/${icon}`} />;
+    return () => <StatusIcon name={name} icon={`./marker/${icon}`} />;
 }
 
 export const StatusAttack1 = makeIcon('Attack 1', 'attack1.png');
