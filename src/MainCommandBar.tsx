@@ -1,7 +1,7 @@
 import { CommandBar, ICommandBarItemProps } from '@fluentui/react';
 import { useBoolean } from '@fluentui/react-hooks';
 import React, { useCallback, useMemo } from 'react';
-import { useScene, useSceneUndoRedo } from './SceneProvider';
+import { useEditorState, useSceneUndoRedo } from './SceneProvider';
 import { saveFile } from './file';
 import { OpenDialog, SaveAsDialog } from './file/FileDialog';
 import { ShareDialog } from './file/ShareDialog';
@@ -16,16 +16,16 @@ export const MainCommandBar: React.FC = () => {
     const isDirty = useIsDirty();
     const setSavedState = useSetSavedState();
     const [undo, redo] = useSceneUndoRedo();
-    const { scene, source } = useScene();
+    const { groups, source } = useEditorState();
 
     const save = useCallback(async () => {
         if (source) {
-            await saveFile(scene, source);
-            setSavedState(scene);
+            await saveFile(groups, source);
+            setSavedState(groups);
         } else {
             showSaveAs();
         }
-    }, [scene, source, setSavedState, showSaveAs]);
+    }, [groups, source, setSavedState, showSaveAs]);
 
     const items = useMemo<ICommandBarItemProps[]>(
         () => [

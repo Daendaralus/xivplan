@@ -118,9 +118,13 @@ export function createControlPointManager<T extends Vector2d, S, P = {}>(
             if (!groupRef.current) {
                 return { x: 0, y: 0 };
             }
-
-            const { x, y } = groupRef.current.getRelativePointerPosition();
-            return { x, y: -y };
+            const pointerPosition = groupRef.current.getRelativePointerPosition();
+            if (!pointerPosition) {
+                return { x: 0, y: 0 };
+            }
+        
+            const { x, y } = pointerPosition;
+            return { x: x, y: -y };
         }, [groupRef]);
 
         const getTransformStart = useCallback(
@@ -130,13 +134,13 @@ export function createControlPointManager<T extends Vector2d, S, P = {}>(
 
                     const pointerPos = getPointerPos();
                     const handleCornerOffset = e.target.getRelativePointerPosition();
-
+                    
                     // Offset is relative to rotated object, but we want the offset
                     // in screen coordinates, so back out the rotation.
                     const handleOffset = rotateCoord(
                         {
-                            x: handleCornerOffset.x - e.target.offsetX(),
-                            y: handleCornerOffset.y - e.target.offsetY(),
+                            x: (handleCornerOffset?.x??0) - e.target.offsetX(),
+                            y: (handleCornerOffset?.y??0) - e.target.offsetY(),
                         },
                         -rotation,
                     );

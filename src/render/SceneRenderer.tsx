@@ -7,7 +7,7 @@ import { DefaultCursorProvider } from '../DefaultCursorState';
 import { getDropAction } from '../DropHandler';
 import { DrawConfigContext, EditModeContext, TetherConfigContext } from '../EditModeProvider';
 import { SceneHotkeyHandler } from '../HotkeyHandler';
-import { EditorState, SceneAction, SceneContext, useCurrentStep, useScene } from '../SceneProvider';
+import { EditorState, SceneAction, SceneContext, useCurrentStep, useEditorState, useScene } from '../SceneProvider';
 import { SelectionContext } from '../SelectionProvider';
 import { getCanvasSize, getSceneCoord } from '../coord';
 import { Scene } from '../scene';
@@ -29,7 +29,9 @@ export const SceneRenderer: React.FC = () => {
     const drawConfigBridge = useContext(DrawConfigContext);
     const tetherConfigBridge = useContext(TetherConfigContext);
 
-    const { scene } = useScene();
+    const { currentGroup, groups } = useEditorState();
+    const scene = groups[currentGroup]?.scene;
+    if (scene === undefined) throw new Error('scene is undefined');
     const [, setSelection] = selectionBridge;
     const size = getCanvasSize(scene);
     const stageRef = useRef<Konva.Stage>(null);
@@ -105,7 +107,8 @@ export const ScenePreview: React.FC<ScenePreviewProps> = ({ scene, stepIndex, wi
     const sceneContext: UndoContext<EditorState, SceneAction> = [
         {
             present: {
-                scene,
+                groups: [{scene: scene, name: 'Preview'}],
+                currentGroup: 0,
                 currentStep: stepIndex ?? 0,
             },
             past: [],
