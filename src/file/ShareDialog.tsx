@@ -5,15 +5,16 @@ import {
     IStyleFunctionOrObject,
     Label,
     PrimaryButton,
+    Spinner,
     TextField,
     Theme,
     mergeStyleSets,
 } from '@fluentui/react';
 import { useBoolean } from '@fluentui/react-hooks';
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { BaseDialog, IBaseDialogStyles } from '../BaseDialog';
 import { useEditorState } from '../SceneProvider';
-import { sceneToText } from '../file';
+import { getShareLink } from './share';
 
 const classNames = mergeStyleSets({
     tab: {
@@ -54,14 +55,24 @@ const labelStyles = mergeStyleSets({
 
 const ShareText: React.FC = () => {
     const { groups } = useEditorState();
-    const url = useMemo(() => {
-        const data = sceneToText(groups);
-        return `${location.protocol}//${location.host}${location.pathname}#/plan/${data}`;
-    }, [groups]);
     const [copyMessageVisible, setMessageVisibility] = useBoolean(false);
     const timerRef = useRef<number>();
+    const [url, setUrl] = useState<string | undefined>(undefined);
+    const [isUrlLoading, setIsUrlLoading] = useState(true);
+    
+    // if(isUrlLoading){
+        useEffect(() => {
+            const urlPromise = getShareLink(groups);
+            setIsUrlLoading(true);
+            urlPromise.then(fetchedUrl => {
+                setUrl(fetchedUrl);
+                setIsUrlLoading(false);
+            });
+        }, []); // Empty dependency array to run once on mount
+    // }
 
     const doCopyToClipboard = () => {
+        if(isUrlLoading || url === undefined) return;
         navigator.clipboard.writeText(url);
         setMessageVisibility.setTrue();
         clearTimeout(timerRef.current);
@@ -72,6 +83,12 @@ const ShareText: React.FC = () => {
     useEffect(() => {
         return () => clearTimeout(timerRef.current);
     }, []);
+    if (isUrlLoading) {
+        return <Spinner />;
+    }
+    if (url === undefined) {
+        return null
+    }
 
     return (
         <>

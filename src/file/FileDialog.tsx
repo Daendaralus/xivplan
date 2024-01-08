@@ -237,7 +237,7 @@ const OpenLocalFile: React.FC<SourceTabProps> = ({ onDismiss }) => {
     );
 };
 
-function decodeGroups(text: string): Group[] | undefined {
+async function decodeGroups(text: string): Promise<Group[] | undefined> {
     try {
         return parseSceneLink(new URL(text));
     } catch (ex) {
@@ -285,6 +285,8 @@ const ImportFromString: React.FC<SourceTabProps> = ({ onDismiss }) => {
     const theme = useTheme();
     const [data, setData] = useState<string | undefined>('');
     const [error, setError] = useState<string | undefined>('');
+    const [paste, setPaste] = useState<string | undefined>(undefined);
+    const [isPasteLoading, setIsPasteLoading] = useState(true);
 
     const importCallback = useCallback(async () => {
         if (!data) {
@@ -298,7 +300,7 @@ const ImportFromString: React.FC<SourceTabProps> = ({ onDismiss }) => {
         }
 
         
-        const groups = decodeGroups(data);
+        const groups = await decodeGroups(data);
         if (!groups) {
             setError('Invalid link');
             return;
