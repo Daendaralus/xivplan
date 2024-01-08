@@ -131,6 +131,19 @@ export interface RenameGroupAction {
     name: string;
 }
 
+export interface GroupsMoveAction {
+    type: 'moveGroups';
+    from: number;
+    to: number;
+}
+
+export interface StepsMoveAction {
+    type: 'moveSteps';
+    from: number;
+    to: number;
+}
+
+
 export interface SetGroupAction {
     type: 'setGroup';
     index: number;
@@ -150,13 +163,13 @@ export interface IncrementGroupAction {
     type: 'nextGroup' | 'previousGroup';
 }
 
-export type StepAction = SetStepAction | IncrementStepAction | AddStepAction | RemoveStepAction | RenameStepAction;
+export type StepAction = SetStepAction | IncrementStepAction | AddStepAction | RemoveStepAction | RenameStepAction | StepsMoveAction;
 export interface SetSourceAction {
     type: 'setSource';
     source: FileSource | undefined;
 }
 
-export type GroupAction = IncrementGroupAction | RenameGroupAction | SetGroupAction | AddGroupAction | RemoveGroupAction;
+export type GroupAction = IncrementGroupAction | RenameGroupAction | SetGroupAction | AddGroupAction | RemoveGroupAction | GroupsMoveAction;
 
 export type SceneAction = ArenaAction | ObjectAction | StepAction | SetSourceAction | GroupAction;
 
@@ -404,6 +417,47 @@ function removeGroup(state: Readonly<EditorState>, index: number): EditorState {
         groups: newGroups,
         // Reset current group to the first one if the current group is the one being removed
         currentGroup: state.currentGroup === index ? 0 : state.currentGroup
+    };
+}
+
+function moveGroups(state: Readonly<EditorState>, from: number, to: number): EditorState {
+    if (from === to) {
+        return state;
+    }
+
+    const groups = state.groups.slice();
+    const group = groups.splice(from, 1);
+    groups.splice(to, 0, ...group);
+
+    return {...state, groups:groups}
+}
+
+function moveSteps(state: Readonly<EditorState>, from: number, to: number): EditorState {
+    if (from === to) {
+        return state;
+    }
+    const currentGroup = state.groups[state.currentGroup];
+    if (!currentGroup) {
+        throw new Error(`Invalid group index ${state.currentGroup}`);
+    }
+
+    const currentScene = currentGroup.scene;
+    if (!currentScene) {
+        throw new Error(`Invalid scene in group ${state.currentGroup}`);
+    }
+
+    const steps = [...currentScene.steps];
+    const step = steps.splice(from, 1);
+    steps.splice(to, 0, ...step);
+    const groups = {...state.groups};
+    const newScene = { ...currentGroup.scene, steps };
+
+    const newGroups = [...state.groups];
+    newGroups[state.currentGroup] = { ...currentGroup, scene: newScene };
+
+    return {
+        ...state,
+        groups: newGroups,
     };
 }
 
@@ -760,6 +814,9 @@ function sceneReducer(state: Readonly<EditorState>, action: SceneAction): Editor
         case 'renameGroup':
             return renameGroup(state, action.index, action.name);
 
+        case 'moveGroups':
+            return moveGroups(state, action.from, action.to);
+
         case 'setGroup':
             return setGroup(state, action.index);
 
@@ -782,6 +839,10 @@ function sceneReducer(state: Readonly<EditorState>, action: SceneAction): Editor
             }
             return setStep(state, state.currentGroup - 1);
 
+        case 'moveSteps':
+            return moveSteps(state, action.from, action.to);
+    
+            
         case 'setStep':
             return setStep(state, action.index);
 
