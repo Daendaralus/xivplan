@@ -1,5 +1,5 @@
 export async function createPaste(text: string): Promise<string> {
-    const response = await fetch('https://corsproxy.io/?https://paste.myst.rs/api/v2/paste', {
+    const response = await fetch('https://paste.myst.rs/api/v2/paste', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
